@@ -84,13 +84,14 @@ const (
 )
 
 type appRelease struct {
-	Source        releaseSource
-	SourceIconURL string
-	Name          string
-	Version       string
-	NotesUrl      string
-	TimeReleased  time.Time
-	Downvotes     int
+	Source         releaseSource
+	SourceIconURL  string
+	Name           string
+	Version        string
+	CurrentVersion string
+	NotesUrl       string
+	TimeReleased   time.Time
+	Downvotes      int
 }
 
 type appReleaseList []appRelease
@@ -106,6 +107,7 @@ func (r appReleaseList) sortByNewest() appReleaseList {
 type releaseRequest struct {
 	IncludePreleases bool   `yaml:"include-prereleases"`
 	Repository       string `yaml:"repository"`
+	CurrentVersion   string `yaml:"current-version"`
 
 	source releaseSource
 	token  *string
@@ -169,6 +171,10 @@ func fetchLatestReleases(requests []*releaseRequest) (appReleaseList, error) {
 			failed++
 			slog.Error("Failed to fetch release", "source", requests[i].source, "repository", requests[i].Repository, "error", errs[i])
 			continue
+		}
+
+		if results[i].CurrentVersion == "" {
+			results[i].CurrentVersion = results[i].Version
 		}
 
 		releases = append(releases, *results[i])
@@ -249,12 +255,13 @@ func fetchLatestGithubRelease(request *releaseRequest) (*appRelease, error) {
 	}
 
 	return &appRelease{
-		Source:       releaseSourceGithub,
-		Name:         request.Repository,
-		Version:      normalizeVersionFormat(response.TagName),
-		NotesUrl:     response.HtmlUrl,
-		TimeReleased: parseRFC3339Time(response.PublishedAt),
-		Downvotes:    response.Reactions.Downvotes,
+		Source:         releaseSourceGithub,
+		Name:           request.Repository,
+		Version:        normalizeVersionFormat(response.TagName),
+		CurrentVersion: request.CurrentVersion,
+		NotesUrl:       response.HtmlUrl,
+		TimeReleased:   parseRFC3339Time(response.PublishedAt),
+		Downvotes:      response.Reactions.Downvotes,
 	}, nil
 }
 
@@ -340,11 +347,12 @@ func fetchLatestDockerHubRelease(request *releaseRequest) (*appRelease, error) {
 	}
 
 	return &appRelease{
-		Source:       releaseSourceDockerHub,
-		NotesUrl:     notesURL,
-		Name:         displayName,
-		Version:      tag.Name,
-		TimeReleased: parseRFC3339Time(tag.LastPushed),
+		Source:         releaseSourceDockerHub,
+		NotesUrl:       notesURL,
+		Name:           displayName,
+		Version:        tag.Name,
+		CurrentVersion: request.CurrentVersion,
+		TimeReleased:   parseRFC3339Time(tag.LastPushed),
 	}, nil
 }
 
@@ -379,11 +387,12 @@ func fetchLatestGitLabRelease(request *releaseRequest) (*appRelease, error) {
 	}
 
 	return &appRelease{
-		Source:       releaseSourceGitlab,
-		Name:         request.Repository,
-		Version:      normalizeVersionFormat(response.TagName),
-		NotesUrl:     response.Links.Self,
-		TimeReleased: parseRFC3339Time(response.ReleasedAt),
+		Source:         releaseSourceGitlab,
+		Name:           request.Repository,
+		Version:        normalizeVersionFormat(response.TagName),
+		CurrentVersion: request.CurrentVersion,
+		NotesUrl:       response.Links.Self,
+		TimeReleased:   parseRFC3339Time(response.ReleasedAt),
 	}, nil
 }
 
@@ -412,10 +421,11 @@ func fetchLatestCodebergRelease(request *releaseRequest) (*appRelease, error) {
 	}
 
 	return &appRelease{
-		Source:       releaseSourceCodeberg,
-		Name:         request.Repository,
-		Version:      normalizeVersionFormat(response.TagName),
-		NotesUrl:     response.HtmlUrl,
-		TimeReleased: parseRFC3339Time(response.PublishedAt),
+		Source:         releaseSourceCodeberg,
+		Name:           request.Repository,
+		Version:        normalizeVersionFormat(response.TagName),
+		CurrentVersion: request.CurrentVersion,
+		NotesUrl:       response.HtmlUrl,
+		TimeReleased:   parseRFC3339Time(response.PublishedAt),
 	}, nil
 }
